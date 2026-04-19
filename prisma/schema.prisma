@@ -1,0 +1,83 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String         @id @default(uuid())
+  name          String?
+  email         String?        @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  ownedItems    LibraryItem[]  @relation("Owner")
+  borrowRecords BorrowRecord[] @relation("Borrower")
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Book {
+  id           String        @id
+  title        String
+  author       String?
+  coverUrl     String?
+  libraryItems LibraryItem[]
+}
+
+model LibraryItem {
+  id            String         @id @default(uuid())
+  ownerId       String
+  owner         User           @relation("Owner", fields: [ownerId], references: [id])
+  bookId        String
+  book          Book           @relation(fields: [bookId], references: [id])
+  status        String         @default("AVAILABLE") // AVAILABLE, BORROWED
+  borrowRecords BorrowRecord[]
+}
+
+model BorrowRecord {
+  id           String      @id @default(uuid())
+  itemId       String
+  item         LibraryItem @relation(fields: [itemId], references: [id])
+  borrowerId   String
+  borrower     User        @relation("Borrower", fields: [borrowerId], references: [id])
+  borrowedAt   DateTime    @default(now())
+  returnedAt   DateTime?
+}
