@@ -14,12 +14,20 @@ type LibraryItem = {
 export default function Home() {
   const { currentUser } = useAuth();
   const [items, setItems] = useState<LibraryItem[]>([]);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const fetchItems = () => {
     fetch("/api/library")
       .then((res) => res.json())
-      .then((data) => setItems(data));
+      .then((data) => {
+        if (data.error) {
+          setErrorMsg(data.error);
+        } else {
+          setItems(data);
+          setErrorMsg(null);
+        }
+      });
   };
 
   useEffect(() => {
@@ -46,6 +54,11 @@ export default function Home() {
   return (
     <div>
       <h2>Library Inventory</h2>
+      {errorMsg && (
+        <div style={{ color: '#ef4444', marginBottom: '1rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '4px' }}>
+          <strong>Error:</strong> {errorMsg} (Please check database connection)
+        </div>
+      )}
       <div className="glass table-container">
         <table className="table">
           <thead>

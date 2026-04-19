@@ -14,6 +14,7 @@ type LibraryItem = {
 export default function MyBooks() {
   const { currentUser } = useAuth();
   const [items, setItems] = useState<LibraryItem[]>([]);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
@@ -21,7 +22,14 @@ export default function MyBooks() {
   const fetchItems = () => {
     fetch("/api/library")
       .then((res) => res.json())
-      .then((data) => setItems(data));
+      .then((data) => {
+        if (data.error) {
+          setErrorMsg(data.error);
+        } else {
+          setItems(data);
+          setErrorMsg(null);
+        }
+      });
   };
 
   useEffect(() => {
@@ -67,6 +75,12 @@ export default function MyBooks() {
       <h2>My Books</h2>
       <p style={{marginBottom: "2rem", color: "#cbd5e1"}}>A complete history of all the books you have shared to the library.</p>
       
+      {errorMsg && (
+        <div style={{ color: '#ef4444', marginBottom: '1rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '4px' }}>
+          <strong>Error:</strong> {errorMsg} (Please check database connection)
+        </div>
+      )}
+
       <div className="glass table-container">
         <table className="table">
           <thead>
