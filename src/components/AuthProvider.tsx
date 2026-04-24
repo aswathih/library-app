@@ -31,6 +31,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
           {currentUser && <Link href="/">Dashboard</Link>}
           {currentUser && <Link href="/my-books">My Books</Link>}
           {currentUser && <Link href="/add">Add Book</Link>}
+          {currentUser && <Link href="/users">Readers</Link>}
           
           <div className="auth-select-wrapper" style={{background: 'transparent', padding: 0}}>
             {status === "loading" ? (
