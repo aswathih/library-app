@@ -15,7 +15,15 @@ type BookResult = {
 
 function ScannerModal({ onResult, onClose }: { onResult: (text: string) => void, onClose: () => void }) {
   const { ref } = useZxing({
-    constraints: { video: { facingMode: "environment" } },
+    constraints: { 
+      video: { 
+        facingMode: "environment",
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        // @ts-ignore - focusMode is an experimental property but essential for Android autofocus
+        advanced: [{ focusMode: "continuous" }]
+      } 
+    },
     onResult(result) {
       onResult(result.getText());
     },
