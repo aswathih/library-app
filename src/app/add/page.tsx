@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { useZxing } from "react-zxing";
-import { DecodeHintType, BarcodeFormat } from "@zxing/library";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 
 type BookResult = {
   id: string;
@@ -15,55 +14,66 @@ type BookResult = {
 };
 
 function ScannerModal({ onResult, onClose }: { onResult: (text: string) => void, onClose: () => void }) {
-  const { ref } = useZxing({
-    constraints: { 
-      video: { 
-        facingMode: "environment",
-        // Removed heavy 1080p constraints that completely freeze iOS Safari processor
-      } 
-    },
-    hints: new Map([
-      // Force the scanner to ONLY look for Book Barcodes (EAN-13), making it 10x faster
-      [DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8]]
-    ]),
-    timeBetweenDecodingAttempts: 250,
-    onResult(result) {
-      onResult(result.getText());
-    },
-  });
+  useEffect(() => {
+    let html5QrCode: Html5Qrcode;
+
+    const timer = setTimeout(() => {
+      try {
+        html5QrCode = new Html5Qrcode("reader");
+        
+        const config = { 
+          fps: 10, 
+          qrbox: { width: 250, height: 150 }, 
+          // Strictly look for ISBN barcodes for massive performance boost
+          formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13]
+        };
+        
+        html5QrCode.start(
+          { facingMode: "environment" },
+          config,
+          (decodedText) => {
+            // Play native beep
+            const audio = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU");
+            audio.play().catch(() => {});
+            
+            // Stop scanning and return result safely
+            if (html5QrCode.isScanning) {
+               html5QrCode.stop().then(() => onResult(decodedText)).catch(() => onResult(decodedText));
+            } else {
+               onResult(decodedText);
+            }
+          },
+          () => {} // Ignore continuous noise errors
+        ).catch(console.error);
+      } catch (err) {
+        console.error("Failed to initialize scanner", err);
+      }
+    }, 150); // slight buffer for React DOM paint sync
+
+    return () => {
+      clearTimeout(timer);
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().catch(() => {});
+      }
+    };
+  }, [onResult]);
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.9)', zIndex: 9999, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ position: 'relative', width: '100%', height: '75%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <video ref={ref} style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover' }} autoPlay playsInline muted />
-        
-        {/* Visual Scanner Guide Overlay */}
-        <div style={{
-          position: 'absolute',
-          width: '80%',
-          maxWidth: '350px',
-          height: '150px',
-          border: '4px solid rgba(16, 185, 129, 0.8)',
-          borderRadius: '12px',
-          boxShadow: '0 0 0 4000px rgba(0, 0, 0, 0.5)',
-          zIndex: 10
-        }}>
-          <div style={{ position: 'absolute', top: '50%', left: 0, width: '100%', height: '2px', background: 'rgba(239, 68, 68, 0.8)', animation: 'scan 2s infinite linear' }} />
-        </div>
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100dvh', background: '#0f172a', zIndex: 9999, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <p style={{ color: 'white', fontWeight: 600, fontSize: '1.2rem', marginBottom: '1.5rem', textAlign: 'center' }}>
+          Align the ISBN barcode inside the box
+        </p>
+        {/* The target ID reader where HTML5Qrcode injects the stream */}
+        <div id="reader" style={{ width: '100%', maxWidth: '400px', background: 'black', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}></div>
       </div>
       
-      <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', background: '#0f172a', flex: 1, boxShadow: '0 -4px 20px rgba(0,0,0,0.5)', zIndex: 11 }}>
-        <p style={{ color: 'white', fontWeight: 600, fontSize: '1.1rem', textAlign: 'center' }}>Align back camera exactly over barcode</p>
-        <button className="btn btn-primary" style={{ background: '#ef4444', padding: '0.8rem 2rem' }} onClick={onClose}>Cancel Scan</button>
+      {/* Footer Anchored definitively to the bottom so "Cancel" never gets cut off */}
+      <div style={{ padding: '2rem', display: 'flex', justifyContent: 'center', background: '#0f172a', boxShadow: '0 -4px 20px rgba(0,0,0,0.5)', zIndex: 11 }}>
+        <button className="btn btn-primary" style={{ background: '#ef4444', padding: '1rem 3rem', fontSize: '1.2rem', borderRadius: '50px' }} onClick={onClose}>
+          Cancel Scan
+        </button>
       </div>
-
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes scan {
-          0% { transform: translateY(-75px); }
-          50% { transform: translateY(75px); }
-          100% { transform: translateY(-75px); }
-        }
-      `}} />
     </div>
   );
 }
@@ -103,13 +113,9 @@ export default function AddBook() {
   };
 
   const handleBarcodeScan = (isbn: string) => {
-    // Play a quick success beep natively perfectly compatible with phones
-    const audio = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU");
-    audio.play().catch(() => {}); // silent catch if browser blocks autoplay
-
     setShowScanner(false);
-    setQuery(isbn); // Auto fill search box for visual feedback
-    searchBooks(isbn); // Trigger search!
+    setQuery(isbn); 
+    searchBooks(isbn);
   };
 
   const addBookToLibrary = async (book: BookResult) => {
