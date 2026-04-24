@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useZxing } from "react-zxing";
+import { DecodeHintType, BarcodeFormat } from "@zxing/library";
 
 type BookResult = {
   id: string;
@@ -18,12 +19,14 @@ function ScannerModal({ onResult, onClose }: { onResult: (text: string) => void,
     constraints: { 
       video: { 
         facingMode: "environment",
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-        // @ts-ignore - focusMode is an experimental property but essential for Android autofocus
-        advanced: [{ focusMode: "continuous" }]
+        // Removed heavy 1080p constraints that completely freeze iOS Safari processor
       } 
     },
+    hints: new Map([
+      // Force the scanner to ONLY look for Book Barcodes (EAN-13), making it 10x faster
+      [DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8]]
+    ]),
+    timeBetweenDecodingAttempts: 250,
     onResult(result) {
       onResult(result.getText());
     },
