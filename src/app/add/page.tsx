@@ -23,6 +23,11 @@ export default function AddBook() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const showToast = (msg: string, type: 'success'|'error') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 2000);
+  };
+
   const searchBooks = async (searchQuery: string, isIsbn = false) => {
     if (!searchQuery) return;
     setLoading(true);
@@ -43,14 +48,14 @@ export default function AddBook() {
       setResults(mappedBooks);
       
       if (isIsbn && mappedBooks.length === 0) {
-         setToast({ msg: `Book with ISBN ${searchQuery} not found. Try searching its Title manually!`, type: 'error' });
+         showToast(`Book with ISBN ${searchQuery} not found. Try searching its Title manually!`, 'error');
       } else if (isIsbn && mappedBooks.length > 0) {
-         setToast({ msg: `Barcode Scanned! Found: ${mappedBooks[0].volumeInfo.title}`, type: 'success' });
+         showToast(`Barcode Scanned! Found: ${mappedBooks[0].volumeInfo.title}`, 'success');
       }
       
     } catch (err) {
       console.error(err);
-      setToast({ msg: `Network error retrieving book info.`, type: 'error' });
+      showToast(`Network error retrieving book info.`, 'error');
     }
     setLoading(false);
   };
@@ -65,30 +70,25 @@ export default function AddBook() {
     if (!file) return;
 
     setIsProcessing(true);
-    setToast({ msg: "Analyzing barcode image...", type: 'success' });
+    showToast("Analyzing barcode image...", 'success');
     
     try {
       const html5QrCode = new Html5Qrcode("hidden-scanner-div");
-      
-      // Parse the native photo directly!
       const decodedText = await html5QrCode.scanFile(file, true);
       const cleanDigits = decodedText.replace(/[^0-9]/g, '');
       
       if (cleanDigits.length < 9) {
-        setToast({ msg: `Scanned code is too short to be an ISBN.`, type: 'error' });
+        showToast(`Scanned code is too short to be an ISBN.`, 'error');
       } else {
-        // Play native beep
         const audio = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU");
         audio.play().catch(() => {});
-        
         setQuery(cleanDigits);
         searchBooks(cleanDigits, true);
       }
       html5QrCode.clear();
-
     } catch (err) {
       console.error(err);
-      setToast({ msg: "No readable barcode found in that photo! Make sure it's crisp and centered.", type: 'error' });
+      showToast("No readable barcode found in that photo! Make sure it's crisp and centered.", 'error');
     }
     
     setIsProcessing(false);
@@ -113,15 +113,13 @@ export default function AddBook() {
       });
       const data = await res.json();
       if (res.ok) {
-        setToast({ msg: `Added "${payload.title}" to your library!`, type: 'success' });
+        showToast(`Added "${payload.title}" to your library!`, 'success');
       } else {
-        setToast({ msg: data.error || "Failed to add book.", type: 'error' });
+        showToast(data.error || "Failed to add book.", 'error');
       }
-      setTimeout(() => setToast(null), 4000);
     } catch (err) {
       console.error(err);
-      setToast({ msg: "An unexpected error occurred.", type: 'error' });
-      setTimeout(() => setToast(null), 4000);
+      showToast("An unexpected error occurred.", 'error');
     }
   };
 
