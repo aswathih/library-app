@@ -15,7 +15,7 @@ type BookResult = {
 
 function ScannerModal({ onResult, onClose }: { onResult: (text: string) => void, onClose: () => void }) {
   const { ref } = useZxing({
-    onDecodeResult(result) {
+    onResult(result) {
       onResult(result.getText());
     },
   });
