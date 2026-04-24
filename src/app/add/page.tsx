@@ -86,11 +86,14 @@ export default function AddBook() {
   const [showScanner, setShowScanner] = useState(false);
   const [toast, setToast] = useState<{msg: string, type: 'success'|'error'} | null>(null);
 
-  const searchBooks = async (searchQuery: string) => {
+  const searchBooks = async (searchQuery: string, isIsbn = false) => {
     if (!searchQuery) return;
     setLoading(true);
     try {
-      const res = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(searchQuery)}&limit=12`);
+      // If we explicitly know this is an ISBN, we hit the exact index. Otherwise general keyword.
+      const queryParam = isIsbn ? `isbn=${encodeURIComponent(searchQuery)}` : `q=${encodeURIComponent(searchQuery)}`;
+      const res = await fetch(`https://openlibrary.org/search.json?${queryParam}&limit=12`);
+      
       const data = await res.json();
       const mappedBooks: BookResult[] = (data.docs || []).map((doc: any) => ({
         id: doc.key,
@@ -100,22 +103,48 @@ export default function AddBook() {
           imageLinks: doc.cover_i ? { thumbnail: `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` } : undefined,
         }
       }));
+      
       setResults(mappedBooks);
+      
+      if (isIsbn && mappedBooks.length === 0) {
+         setToast({ msg: `Book with ISBN ${searchQuery} not found in the global registry.`, type: 'error' });
+      } else if (isIsbn && mappedBooks.length > 0) {
+         setToast({ msg: `Barcode Scanned! Found: ${mappedBooks[0].volumeInfo.title}`, type: 'success' });
+      }
+      
     } catch (err) {
       console.error(err);
+      setToast({ msg: `Network error retrieving book info.`, type: 'error' });
     }
     setLoading(false);
   };
 
   const handleManualSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    searchBooks(query);
+    searchBooks(query, false);
   };
 
-  const handleBarcodeScan = (isbn: string) => {
+  const handleBarcodeScan = (scannedText: string) => {
     setShowScanner(false);
-    setQuery(isbn); 
-    searchBooks(isbn);
+    
+    // Clean up scanner noise to purely numeric values
+    const cleanDigits = scannedText.replace(/[^0-9]/g, '');
+    
+    if (cleanDigits.length < 10) {
+       setToast({ msg: `Scanned code ${cleanDigits} is too short to be an ISBN! Try again.`, type: 'error' });
+       return;
+    }
+    
+    // Typical ISBN-13 books start with 978 or 979. If it's a 13-digit code starting with 0, 
+    // it's a generic UPC code, not an ISBN! EAN_13 scanner picks these up.
+    if (cleanDigits.length === 13 && !cleanDigits.startsWith("978") && !cleanDigits.startsWith("979")) {
+       setToast({ msg: `Scanned a UPC barcode instead of a Book ISBN. Look for the barcode starting with 978!`, type: 'error' });
+       return;
+    }
+
+    setQuery(cleanDigits); 
+    // Explicitly flag this as an ISBN scan so OpenLibrary knows exactly what table to hunt inside.
+    searchBooks(cleanDigits, true);
   };
 
   const addBookToLibrary = async (book: BookResult) => {
