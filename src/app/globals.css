@@ -294,3 +294,30 @@ select.status-select option {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  .nav-links {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    width: 100%;
+  }
+
+  .container {
+    padding: 1rem;
+  }
+
+  .table-container {
+    zoom: 0.8;
+  }
+
+  h1 { font-size: 2rem; }
+  h2 { font-size: 1.25rem; }
+}

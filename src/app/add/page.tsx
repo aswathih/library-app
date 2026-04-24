@@ -127,24 +127,19 @@ export default function AddBook() {
       )}
 
       <div style={{display: "flex", gap: "1rem", marginBottom: "2rem", flexDirection: "column"}}>
-        <form onSubmit={handleManualSearch} style={{display: "flex", gap: "1rem"}}>
+        <form onSubmit={handleManualSearch} style={{display: "flex", gap: "1rem", flexWrap: "wrap"}}>
           <input 
             type="text" 
             className="input" 
             placeholder="Search by title, author, or ISBN..." 
             value={query} 
             onChange={e => setQuery(e.target.value)} 
+            style={{ flex: "1 1 200px" }}
           />
-          <button type="submit" className="btn btn-primary" disabled={loading}>
+          <button type="submit" className="btn btn-primary" disabled={loading} style={{ flex: "0 0 auto" }}>
             {loading ? "Searching..." : "Search"}
           </button>
         </form>
-
-        <div style={{display: "flex", alignItems: "center", gap: "1rem"}}>
-          <div style={{flex: 1, height: "1px", background: "rgba(255,255,255,0.1)"}}></div>
-          <span style={{color: "#94a3b8", fontSize: "0.9rem"}}>OR</span>
-          <div style={{flex: 1, height: "1px", background: "rgba(255,255,255,0.1)"}}></div>
-        </div>
         
         <button 
           className="btn" 
@@ -158,11 +153,12 @@ export default function AddBook() {
             alignItems: 'center',
             justifyContent: 'center',
             gap: '0.5rem',
-            boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)'
+            boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
+            marginTop: '0.5rem'
           }}
         >
           <span style={{fontSize: '1.5rem'}}>📸</span> 
-          <span>Scan ISBN Barcode</span>
+          <span>Snap the Barcode</span>
         </button>
       </div>
 
