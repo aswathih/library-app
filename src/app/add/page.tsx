@@ -15,18 +15,44 @@ type BookResult = {
 
 function ScannerModal({ onResult, onClose }: { onResult: (text: string) => void, onClose: () => void }) {
   const { ref } = useZxing({
+    constraints: { video: { facingMode: "environment" } },
     onResult(result) {
       onResult(result.getText());
     },
   });
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'black', zIndex: 9999, display: 'flex', flexDirection: 'column' }}>
-      <video ref={ref} style={{ width: '100%', height: '80%', objectFit: 'cover' }} />
-      <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', background: '#0f172a', flex: 1 }}>
-        <p style={{ color: 'white', fontWeight: 600, fontSize: '1.2rem' }}>Focus on the ISBN barcode...</p>
-        <button className="btn btn-primary" style={{ background: '#ef4444' }} onClick={onClose}>Cancel Scan</button>
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.9)', zIndex: 9999, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ position: 'relative', width: '100%', height: '75%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <video ref={ref} style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover' }} autoPlay playsInline muted />
+        
+        {/* Visual Scanner Guide Overlay */}
+        <div style={{
+          position: 'absolute',
+          width: '80%',
+          maxWidth: '350px',
+          height: '150px',
+          border: '4px solid rgba(16, 185, 129, 0.8)',
+          borderRadius: '12px',
+          boxShadow: '0 0 0 4000px rgba(0, 0, 0, 0.5)',
+          zIndex: 10
+        }}>
+          <div style={{ position: 'absolute', top: '50%', left: 0, width: '100%', height: '2px', background: 'rgba(239, 68, 68, 0.8)', animation: 'scan 2s infinite linear' }} />
+        </div>
       </div>
+      
+      <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', background: '#0f172a', flex: 1, boxShadow: '0 -4px 20px rgba(0,0,0,0.5)', zIndex: 11 }}>
+        <p style={{ color: 'white', fontWeight: 600, fontSize: '1.1rem', textAlign: 'center' }}>Align back camera exactly over barcode</p>
+        <button className="btn btn-primary" style={{ background: '#ef4444', padding: '0.8rem 2rem' }} onClick={onClose}>Cancel Scan</button>
+      </div>
+
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes scan {
+          0% { transform: translateY(-75px); }
+          50% { transform: translateY(75px); }
+          100% { transform: translateY(-75px); }
+        }
+      `}} />
     </div>
   );
 }
