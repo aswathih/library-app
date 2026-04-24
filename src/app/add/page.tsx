@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { Html5Qrcode } from "html5-qrcode";
 
 type BookResult = {
   id: string;
@@ -13,84 +13,20 @@ type BookResult = {
   }
 };
 
-function ScannerModal({ onResult, onClose }: { onResult: (text: string) => void, onClose: () => void }) {
-  useEffect(() => {
-    let html5QrCode: Html5Qrcode;
-
-    const timer = setTimeout(() => {
-      try {
-        html5QrCode = new Html5Qrcode("reader");
-        
-        const config = { 
-          fps: 10, 
-          qrbox: { width: 250, height: 150 }, 
-          // Strictly look for ISBN barcodes for massive performance boost
-          formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13]
-        };
-        
-        html5QrCode.start(
-          { facingMode: "environment" },
-          config,
-          (decodedText) => {
-            // Play native beep
-            const audio = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU");
-            audio.play().catch(() => {});
-            
-            // Stop scanning and return result safely
-            if (html5QrCode.isScanning) {
-               html5QrCode.stop().then(() => onResult(decodedText)).catch(() => onResult(decodedText));
-            } else {
-               onResult(decodedText);
-            }
-          },
-          () => {} // Ignore continuous noise errors
-        ).catch(console.error);
-      } catch (err) {
-        console.error("Failed to initialize scanner", err);
-      }
-    }, 150); // slight buffer for React DOM paint sync
-
-    return () => {
-      clearTimeout(timer);
-      if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().catch(() => {});
-      }
-    };
-  }, [onResult]);
-
-  return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100dvh', background: '#0f172a', zIndex: 9999, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-        <p style={{ color: 'white', fontWeight: 600, fontSize: '1.2rem', marginBottom: '1.5rem', textAlign: 'center' }}>
-          Align the ISBN barcode inside the box
-        </p>
-        {/* The target ID reader where HTML5Qrcode injects the stream */}
-        <div id="reader" style={{ width: '100%', maxWidth: '400px', background: 'black', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}></div>
-      </div>
-      
-      {/* Footer Anchored definitively to the bottom so "Cancel" never gets cut off */}
-      <div style={{ padding: '2rem', display: 'flex', justifyContent: 'center', background: '#0f172a', boxShadow: '0 -4px 20px rgba(0,0,0,0.5)', zIndex: 11 }}>
-        <button className="btn btn-primary" style={{ background: '#ef4444', padding: '1rem 3rem', fontSize: '1.2rem', borderRadius: '50px' }} onClick={onClose}>
-          Cancel Scan
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export default function AddBook() {
   const { currentUser } = useAuth();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<BookResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [toast, setToast] = useState<{msg: string, type: 'success'|'error'} | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const searchBooks = async (searchQuery: string, isIsbn = false) => {
     if (!searchQuery) return;
     setLoading(true);
     try {
-      // If we explicitly know this is an ISBN, we hit the exact index. Otherwise general keyword.
       const queryParam = isIsbn ? `isbn=${encodeURIComponent(searchQuery)}` : `q=${encodeURIComponent(searchQuery)}`;
       const res = await fetch(`https://openlibrary.org/search.json?${queryParam}&limit=12`);
       
@@ -107,7 +43,7 @@ export default function AddBook() {
       setResults(mappedBooks);
       
       if (isIsbn && mappedBooks.length === 0) {
-         setToast({ msg: `Book with ISBN ${searchQuery} not found in the global registry.`, type: 'error' });
+         setToast({ msg: `Book with ISBN ${searchQuery} not found. Try searching its Title manually!`, type: 'error' });
       } else if (isIsbn && mappedBooks.length > 0) {
          setToast({ msg: `Barcode Scanned! Found: ${mappedBooks[0].volumeInfo.title}`, type: 'success' });
       }
@@ -124,27 +60,39 @@ export default function AddBook() {
     searchBooks(query, false);
   };
 
-  const handleBarcodeScan = (scannedText: string) => {
-    setShowScanner(false);
-    
-    // Clean up scanner noise to purely numeric values
-    const cleanDigits = scannedText.replace(/[^0-9]/g, '');
-    
-    if (cleanDigits.length < 10) {
-       setToast({ msg: `Scanned code ${cleanDigits} is too short to be an ISBN! Try again.`, type: 'error' });
-       return;
-    }
-    
-    // Typical ISBN-13 books start with 978 or 979. If it's a 13-digit code starting with 0, 
-    // it's a generic UPC code, not an ISBN! EAN_13 scanner picks these up.
-    if (cleanDigits.length === 13 && !cleanDigits.startsWith("978") && !cleanDigits.startsWith("979")) {
-       setToast({ msg: `Scanned a UPC barcode instead of a Book ISBN. Look for the barcode starting with 978!`, type: 'error' });
-       return;
-    }
+  const handleImageCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    setQuery(cleanDigits); 
-    // Explicitly flag this as an ISBN scan so OpenLibrary knows exactly what table to hunt inside.
-    searchBooks(cleanDigits, true);
+    setIsProcessing(true);
+    setToast({ msg: "Analyzing barcode image...", type: 'success' });
+    
+    try {
+      const html5QrCode = new Html5Qrcode("hidden-scanner-div");
+      
+      // Parse the native photo directly!
+      const decodedText = await html5QrCode.scanFile(file, true);
+      const cleanDigits = decodedText.replace(/[^0-9]/g, '');
+      
+      if (cleanDigits.length < 9) {
+        setToast({ msg: `Scanned code is too short to be an ISBN.`, type: 'error' });
+      } else {
+        // Play native beep
+        const audio = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU");
+        audio.play().catch(() => {});
+        
+        setQuery(cleanDigits);
+        searchBooks(cleanDigits, true);
+      }
+      html5QrCode.clear();
+
+    } catch (err) {
+      console.error(err);
+      setToast({ msg: "No readable barcode found in that photo! Make sure it's crisp and centered.", type: 'error' });
+    }
+    
+    setIsProcessing(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const addBookToLibrary = async (book: BookResult) => {
@@ -183,9 +131,8 @@ export default function AddBook() {
 
   return (
     <div>
-      {showScanner && (
-        <ScannerModal onClose={() => setShowScanner(false)} onResult={handleBarcodeScan} />
-      )}
+      {/* Hidden div required by html5-qrcode for memory processing */}
+      <div id="hidden-scanner-div" style={{ display: 'none' }}></div>
 
       <h2>Add a Book to Inventory</h2>
       <p style={{marginBottom: "2rem"}}>Search for a book you own to add it to the shared library.</p>
@@ -213,11 +160,21 @@ export default function AddBook() {
           </button>
         </form>
         
+        <input 
+          type="file" 
+          accept="image/*" 
+          capture="environment" 
+          ref={fileInputRef} 
+          style={{display: "none"}} 
+          onChange={handleImageCapture}
+        />
+
         <button 
           className="btn" 
-          onClick={() => setShowScanner(true)}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isProcessing}
           style={{
-            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+            background: isProcessing ? 'gray' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
             color: 'white',
             padding: '1rem',
             fontSize: '1.1rem',
@@ -229,8 +186,14 @@ export default function AddBook() {
             marginTop: '0.5rem'
           }}
         >
-          <span style={{fontSize: '1.5rem'}}>📸</span> 
-          <span>Snap the Barcode</span>
+          {isProcessing ? (
+             <span>Analyzing Photo...</span>
+          ) : (
+            <>
+              <span style={{fontSize: '1.5rem'}}>📸</span> 
+              <span>Snap the Barcode</span>
+            </>
+          )}
         </button>
       </div>
 
