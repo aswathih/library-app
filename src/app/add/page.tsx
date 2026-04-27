@@ -182,41 +182,48 @@ export default function AddBook() {
           </button>
         </form>
         
-        <input 
-          type="file" 
-          accept="image/*" 
-          capture="environment" 
-          ref={fileInputRef} 
-          style={{display: "none"}} 
-          onChange={handleImageCapture}
-        />
-
-        <button 
-          className="btn" 
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isProcessing}
-          style={{
-            background: isProcessing ? 'gray' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-            color: 'white',
-            padding: '1rem',
-            fontSize: '1.1rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem',
-            boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
-            marginTop: '0.5rem'
-          }}
-        >
-          {isProcessing ? (
-             <span>Analyzing Photo...</span>
-          ) : (
-            <>
-              <span style={{fontSize: '1.5rem'}}>📸</span> 
-              <span>Snap the Barcode</span>
-            </>
-          )}
-        </button>
+        <div style={{ position: "relative", display: "inline-block", width: "100%", marginTop: "0.5rem" }}>
+          <input 
+            type="file" 
+            accept="image/*" 
+            capture="environment" 
+            style={{
+              position: "absolute",
+              top: 0, left: 0, right: 0, bottom: 0,
+              width: "100%", height: "100%",
+              opacity: 0,
+              zIndex: 10,
+              cursor: "pointer"
+            }} 
+            onChange={handleImageCapture}
+            disabled={isProcessing}
+          />
+          <button 
+            className="btn" 
+            disabled={isProcessing}
+            style={{
+              width: "100%",
+              background: isProcessing ? 'gray' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              color: 'white',
+              padding: '1rem',
+              fontSize: '1.1rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
+            }}
+          >
+            {isProcessing ? (
+               <span>Analyzing Photo...</span>
+            ) : (
+              <>
+                <span style={{fontSize: '1.5rem'}}>📸</span> 
+                <span>Snap the Barcode</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="book-grid">

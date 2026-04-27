@@ -66,14 +66,28 @@ export default function MyBooks() {
     }
   };
 
+  const handleReturn = async (itemId: string) => {
+    await fetch("/api/return", {
+      method: "POST",
+      body: JSON.stringify({ itemId }),
+    });
+    fetchItems();
+  };
+
   if (!currentUser) return <div>Loading user context...</div>;
 
   const myBooks = items.filter(it => it.owner.id === currentUser.id);
+  
+  // Filter active items borrowed by the user that have not been returned yet
+  const myBorrowedItems = items.filter(it => 
+    it.status === "BORROWED" && 
+    it.borrowRecords?.[0]?.borrower?.id === currentUser.id
+  );
 
   return (
     <div>
-      <h2>My Books</h2>
-      <p style={{marginBottom: "2rem", color: "#cbd5e1"}}>A complete history of all the books you have shared to the library.</p>
+      <h2>My Shared Books</h2>
+      <p style={{marginBottom: "2rem", color: "#cbd5e1"}}>Manage the status and visibility of books you shared to the platform.</p>
       
       {errorMsg && (
         <div style={{ color: '#ef4444', marginBottom: '1rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '4px' }}>
@@ -151,8 +165,52 @@ export default function MyBooks() {
       </div>
       {myBooks.length === 0 && (
         <div className="glass" style={{padding: "3rem", textAlign: "center", marginTop: "2rem"}}>
-          <h3>You haven't added any books yet!</h3>
+          <h3>You haven't shared any books yet!</h3>
           <p style={{marginTop: "1rem"}}>Go to Add Book to start building your collection.</p>
+        </div>
+      )}
+
+      <h2 style={{marginTop: "3rem"}}>Books I Have Borrowed</h2>
+      <p style={{marginBottom: "2rem", color: "#cbd5e1"}}>Books that you are actively holding and need to return.</p>
+
+      {myBorrowedItems.length === 0 ? (
+        <p style={{color: "#94a3b8"}}>You haven't borrowed any books from the community right now.</p>
+      ) : (
+        <div className="glass table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>Owned By</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {myBorrowedItems.map(it => (
+                <tr key={it.id}>
+                  <td>
+                    <div style={{display: "flex", alignItems: "center", gap: "1rem"}}>
+                      {it.book.coverUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={it.book.coverUrl} alt="cover" style={{width: 40, height: 60, objectFit: "cover", borderRadius: "4px"}} />
+                      ) : (
+                        <div style={{width: 40, height: 60, background: "rgba(255,255,255,0.1)", borderRadius: "4px"}} />
+                      )}
+                      <span style={{fontWeight: 600}}>{it.book.title}</span>
+                    </div>
+                  </td>
+                  <td>{it.book.author || "Unknown"}</td>
+                  <td>{it.owner.name}</td>
+                  <td>
+                    <button className="btn btn-primary" style={{padding: "0.5rem 1rem"}} onClick={() => handleReturn(it.id)}>
+                      Return Book
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

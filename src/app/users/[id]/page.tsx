@@ -4,9 +4,11 @@ import BorrowButton from "@/components/BorrowButton";
 
 export const dynamic = 'force-dynamic';
 
-export default async function UserProfilePage({ params }: { params: { id: string } }) {
+export default async function UserProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+
   const targetUser = await prisma.user.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       ownedItems: {
         include: {
