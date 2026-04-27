@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import Link from "next/link";
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,8 @@ export default async function UsersPage() {
       
       <div className="book-grid">
         {users.map(user => (
-          <div key={user.id} className="card glass" style={{alignItems: 'center', textAlign: 'center', padding: '2rem'}}>
+          <Link href={`/users/${user.id}`} key={user.id} style={{textDecoration: 'none'}}>
+            <div className="card glass" style={{alignItems: 'center', textAlign: 'center', padding: '2rem', cursor: 'pointer', transition: 'transform 0.2s'}}>
             {user.image ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img 
@@ -38,6 +40,7 @@ export default async function UsersPage() {
               {user._count.ownedItems} Books Shared
             </div>
           </div>
+          </Link>
         ))}
         {users.length === 0 && (
           <div className="glass" style={{padding: "3rem", textAlign: "center", gridColumn: "1 / -1"}}>

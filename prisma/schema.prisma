@@ -9,15 +9,20 @@ generator client {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  name          String?
-  email         String?        @unique
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
-  ownedItems    LibraryItem[]  @relation("Owner")
-  borrowRecords BorrowRecord[] @relation("Borrower")
+  id                String             @id @default(uuid())
+  name              String?
+  email             String?            @unique
+  emailVerified     DateTime?
+  image             String?
+  accounts          Account[]
+  sessions          Session[]
+  ownedItems        LibraryItem[]      @relation("Owner")
+  borrowRecords     BorrowRecord[]     @relation("Borrower")
+  pushSubscriptions PushSubscription[]
+  remindersCreated  Reminder[]         @relation("ReminderCreator")
+  remindersReceived Reminder[]         @relation("ReminderTarget")
+  requestsMade      BorrowRequest[]    @relation("Requester")
+  requestsReceived  BorrowRequest[]    @relation("RequestOwner")
 }
 
 model Account {
@@ -26,12 +31,12 @@ model Account {
   type               String
   provider           String
   providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
   expires_at         Int?
   token_type         String?
   scope              String?
-  id_token           String?  @db.Text
+  id_token           String? @db.Text
   session_state      String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -70,7 +75,9 @@ model LibraryItem {
   bookId        String
   book          Book           @relation(fields: [bookId], references: [id])
   status        String         @default("AVAILABLE") // AVAILABLE, BORROWED
-  borrowRecords BorrowRecord[]
+  borrowRecords  BorrowRecord[]
+  reminders      Reminder[]
+  borrowRequests BorrowRequest[]
 }
 
 model BorrowRecord {
@@ -81,4 +88,40 @@ model BorrowRecord {
   borrower     User        @relation("Borrower", fields: [borrowerId], references: [id])
   borrowedAt   DateTime    @default(now())
   returnedAt   DateTime?
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}
+
+model Reminder {
+  id           String      @id @default(uuid())
+  creatorId    String
+  creator      User        @relation("ReminderCreator", fields: [creatorId], references: [id])
+  targetUserId String
+  target       User        @relation("ReminderTarget", fields: [targetUserId], references: [id])
+  bookId       String
+  book         LibraryItem @relation(fields: [bookId], references: [id])
+  reminderDate DateTime
+  message      String?
+  status       String      @default("PENDING")
+  createdAt    DateTime    @default(now())
+}
+  
+model BorrowRequest {  
+  id           String      @id @default(uuid())  
+  requesterId  String  
+  requester    User        @relation("Requester", fields: [requesterId], references: [id])  
+  ownerId      String  
+  owner        User        @relation("RequestOwner", fields: [ownerId], references: [id])  
+  bookId       String  
+  book         LibraryItem @relation(fields: [bookId], references: [id])  
+  status       String      @default("PENDING")  
+  createdAt    DateTime    @default(now())  
 }

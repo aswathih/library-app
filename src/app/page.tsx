@@ -16,6 +16,7 @@ export default function Home() {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchItems = () => {
     fetch("/api/library")
@@ -53,7 +54,18 @@ export default function Home() {
 
   return (
     <div>
-      <h2>Library Inventory</h2>
+      <div style={{display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", gap: "1rem"}}>
+        <h2 style={{margin: 0}}>Library Inventory</h2>
+        <input 
+          type="text" 
+          className="input" 
+          placeholder="Search by title, author, or owner..." 
+          value={searchQuery} 
+          onChange={(e) => setSearchQuery(e.target.value)} 
+          style={{ flex: "1 1 auto", maxWidth: "400px", margin: 0 }}
+        />
+      </div>
+
       {errorMsg && (
         <div style={{ color: '#ef4444', marginBottom: '1rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '4px' }}>
           <strong>Error:</strong> {errorMsg} (Please check database connection)
@@ -72,7 +84,15 @@ export default function Home() {
             </tr>
           </thead>
           <tbody>
-            {items.map((it) => {
+            {items
+              .filter(it => {
+                if (!searchQuery) return true;
+                const sq = searchQuery.toLowerCase();
+                return it.book.title.toLowerCase().includes(sq) || 
+                       it.book.author?.toLowerCase().includes(sq) ||
+                       it.owner.name.toLowerCase().includes(sq);
+              })
+              .map((it) => {
               const currentBorrower = it.borrowRecords?.[0]?.borrower?.name || "None";
               return (
               <tr key={it.id}>

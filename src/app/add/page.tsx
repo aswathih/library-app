@@ -21,6 +21,9 @@ export default function AddBook() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [toast, setToast] = useState<{msg: string, type: 'success'|'error'} | null>(null);
 
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualAuthor, setManualAuthor] = useState("");
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const showToast = (msg: string, type: 'success'|'error') => {
@@ -123,6 +126,27 @@ export default function AddBook() {
     }
   };
 
+  const handleManualAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualTitle) return;
+    
+    setIsProcessing(true);
+    const dummyBook: BookResult = {
+      id: `manual-${Date.now()}`,
+      volumeInfo: {
+        title: manualTitle,
+        authors: [manualAuthor]
+      }
+    };
+    
+    await addBookToLibrary(dummyBook);
+    setManualTitle("");
+    setManualAuthor("");
+    setQuery("");
+    setResults([]);
+    setIsProcessing(false);
+  };
+
   if (!currentUser) {
     return <div>Loading user context...</div>;
   }
@@ -217,7 +241,17 @@ export default function AddBook() {
         ))}
         {results.length === 0 && query && !loading && (
           <div className="glass" style={{padding: "2rem", gridColumn: "1 / -1", textAlign: "center"}}>
-            <p>No books found. Try a different search!</p>
+            <p style={{marginBottom: "1.5rem"}}>No books found inside the global registry!</p>
+            <div style={{ background: "rgba(0,0,0,0.2)", borderRadius: "12px", padding: "1.5rem" }}>
+              <h3 style={{marginBottom: "1rem"}}>Add the book manually</h3>
+              <form onSubmit={handleManualAdd} style={{display: "flex", flexDirection: "column", gap: "1rem", maxWidth: "400px", margin: "0 auto"}}>
+                <input type="text" className="input" placeholder="Exact Book Title" required value={manualTitle} onChange={e => setManualTitle(e.target.value)} />
+                <input type="text" className="input" placeholder="Author Name" required value={manualAuthor} onChange={e => setManualAuthor(e.target.value)} />
+                <button type="submit" className="btn btn-primary" style={{background: "#10b981"}} disabled={isProcessing}>
+                  {isProcessing ? "Adding..." : "Force Add to Library"}
+                </button>
+              </form>
+            </div>
           </div>
         )}
       </div>
