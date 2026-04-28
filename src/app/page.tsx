@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import BorrowButton from "@/components/BorrowButton";
 
 type LibraryItem = {
   id: string;
@@ -35,14 +36,7 @@ export default function Home() {
     fetchItems();
   }, []);
 
-  const handleBorrow = async (itemId: string) => {
-    if (!currentUser) return;
-    await fetch("/api/borrow", {
-      method: "POST",
-      body: JSON.stringify({ itemId, borrowerId: currentUser.id }),
-    });
-    fetchItems();
-  };
+    // Legacy instant-borrow removed in favor of P2P component requests
 
   const confirmDelete = async () => {
     if (!deleteConfirmId) return;
@@ -123,7 +117,7 @@ export default function Home() {
                 <td>
                   <div style={{display: "flex", gap: "0.75rem", alignItems: "center"}}>
                     {it.status === "AVAILABLE" && it.owner.id !== currentUser?.id && (
-                      <button className="btn btn-primary" style={{padding: "0.4rem 0.8rem", fontSize: "0.85rem"}} onClick={() => handleBorrow(it.id)}>Borrow</button>
+                      <BorrowButton itemId={it.id} ownerId={it.owner.id} status={it.status} />
                     )}
                     {it.owner.id === currentUser?.id && (
                       <span style={{color: "#94a3b8", fontSize: "0.85rem"}}>Your Book</span>
