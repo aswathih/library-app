@@ -13,6 +13,35 @@ type BookResult = {
   }
 };
 
+const resizeImage = (file: File, maxWidth: number = 1000): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
+      let { width, height } = img;
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx?.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(new File([blob], file.name, { type: "image/jpeg" }));
+        } else {
+          reject(new Error("Canvas to Blob failed"));
+        }
+      }, "image/jpeg", 0.8);
+    };
+    img.onerror = () => reject(new Error("Failed to load image for resizing"));
+    img.src = url;
+  });
+};
+
 export default function AddBook() {
   const { currentUser } = useAuth();
   const [query, setQuery] = useState("");
@@ -76,8 +105,9 @@ export default function AddBook() {
     showToast("Analyzing barcode image...", 'success');
     
     try {
+      const resizedFile = await resizeImage(file);
       const html5QrCode = new Html5Qrcode("hidden-scanner-div");
-      const decodedText = await html5QrCode.scanFile(file, true);
+      const decodedText = await html5QrCode.scanFile(resizedFile, false);
       const cleanDigits = decodedText.replace(/[^0-9]/g, '');
       
       if (cleanDigits.length < 9) {
@@ -185,7 +215,7 @@ export default function AddBook() {
         <div style={{ position: "relative", display: "inline-block", width: "100%", marginTop: "0.5rem" }}>
           <input 
             type="file" 
-            accept="image/*" 
+            accept="image/jpeg, image/png, image/webp" 
             capture="environment" 
             style={{
               position: "absolute",
